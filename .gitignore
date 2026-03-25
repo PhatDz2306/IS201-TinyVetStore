@@ -1,3 +1,7 @@
 node_modules/
 .env
 /generated/prisma
+.cursor/
+.vscode/
+.idea/
+.DS_Store
