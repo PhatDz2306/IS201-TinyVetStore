@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- CÁC DANH MỤC TRẠNG THÁI (ENUM) ---
+
+enum Role {
+  ADMIN
+  STAFF
+  DOCTOR
+  CUSTOMER
+}
+
+enum BookingStatus {
+  DRAFT       
+  CONFIRMED   
+  IN_PROGRESS 
+  DONE        
+  CANCELLED   
+}
+
+enum OrderStatus {
+  DRAFT       
+  CONFIRMED   
+  DONE        
+  CANCELLED   
+}
+
+enum ServiceType {
+  SPA
+  VET_EXAM
+}
+
+// --- CÁC BẢNG DỮ LIỆU (MODELS) ---
+
+model User {
+  id Int @id @default(autoincrement())
+
+  email        String @unique
+  passwordHash String
+  role         Role
+  name         String?
+  phone        String?
+
+  pets                   Pet[]           @relation("PetOwner")
+  medicalRecordsAsDoctor MedicalRecord[] @relation("MedicalRecordDoctor")
+  bookingsAsCustomer     Booking[]       @relation("BookingCustomer")
+  bookingsAsPerformer    Booking[]       @relation("BookingPerformer")
+  orders                 Order[]         @relation("OrderCustomer")
+  shiftAssignments       ShiftAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pet {
+  id Int @id @default(autoincrement())
+
+  ownerId Int
+  owner   User @relation("PetOwner", fields: [ownerId], references: [id])
+
+  name            String
+  breed           String
+  birthDate       DateTime?
+  currentWeightKg Float?
+
+  medicalRecords MedicalRecord[] @relation("PetMedicalRecords")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model MedicalRecord {
+  id Int @id @default(autoincrement())
+
+  petId Int
+  pet   Pet @relation("PetMedicalRecords", fields: [petId], references: [id])
+
+  doctorId Int
+  doctor   User @relation("MedicalRecordDoctor", fields: [doctorId], references: [id])
+
+  visitReason String
+  diagnosis   String?
+  weightKg    Float
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([petId])
+  @@index([doctorId])
+}
+
+model Service {
+  id Int @id @default(autoincrement())
+
+  name            String      @unique
+  type            ServiceType
+  description     String?
+  price           Float
+  durationMinutes Int?
+
+  bookings Booking[] @relation("ServiceBookings")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Booking {
+  id Int @id @default(autoincrement())
+
+  customerId Int
+  customer   User @relation("BookingCustomer", fields: [customerId], references: [id])
+
+  serviceId Int
+  service   Service @relation("ServiceBookings", fields: [serviceId], references: [id])
+
+  scheduledAt DateTime
+  status      BookingStatus
+
+  performedById Int?
+  performedBy   User?     @relation("BookingPerformer", fields: [performedById], references: [id])
+  performedAt   DateTime?
+
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([serviceId])
+}
+
+model Product {
+  id Int @id @default(autoincrement())
+
+  sku           String  @unique
+  name          String
+  description   String?
+  price         Float
+  stockQuantity Int
+
+  orderItems OrderItem[] @relation("OrderItemProduct")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id Int @id @default(autoincrement())
+
+  customerId Int
+  customer   User @relation("OrderCustomer", fields: [customerId], references: [id])
+
+  status      OrderStatus
+  placedAt    DateTime    @default(now())
+  totalAmount Float
+
+  items OrderItem[] @relation("OrderItems")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+}
+
+model OrderItem {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation("OrderItems", fields: [orderId], references: [id])
+
+  productId Int
+  product   Product @relation("OrderItemProduct", fields: [productId], references: [id])
+
+  quantity  Int
+  unitPrice Float
+  lineTotal Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Shift {
+  id Int @id @default(autoincrement())
+
+  name      String
+  shiftDate DateTime @db.Date
+  startTime DateTime @db.Time(0)
+  endTime   DateTime @db.Time(0)
+
+  assignments ShiftAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShiftAssignment {
+  id Int @id @default(autoincrement())
+
+  shiftId Int
+  shift   Shift @relation(fields: [shiftId], references: [id])
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shiftId, userId])
+  @@index([userId])
+}
